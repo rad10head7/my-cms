@@ -9,37 +9,68 @@ var plumber = require('gulp-plumber');
 
 var basePath = '../client';
 
-function lessFiles() {
-    const apps = ['blog', 'admin'];
+function blogCss() {
 
-    for (const app in apps) {
-        return gulp.src(basePath + '/' + apps[app] + '/_content/app.less')
-            .pipe(plumber())
-            .pipe(less())
-            .pipe(autoprefixer())
-            .pipe(cleanCSS())
-            .pipe(gulp.dest(basePath + '/' + apps[app] + '/_dist/'));
-    }
+    return gulp.src(basePath + '/blog/_content/bootstrap.css')
+        .pipe(plumber())
+        .pipe(autoprefixer())
+        .pipe(cleanCSS())
+        .pipe(concat('app.min.css'))
+        .pipe(gulp.dest(basePath + '/blog/_dist/'));
 };
 
-function scripts() {
-    const apps = ['blog', 'admin'];
+function blogLess() {
 
-    for (const app in apps) {
-        return gulp.src([
-            basePath + '/' + apps[app] + '/**/*.js', 
-            '!' + basePath + '/' + apps[app] + '/_content/**/*.js', 
-            '!' + basePath + '/' + apps[app] + '/_dist/**/*.js'
-        ])
-            .pipe(plumber())
-            .pipe(ngAnnotate())
-            .pipe(uglify())
-            .pipe(concat('app.min.js'))
-            .pipe(gulp.dest(basePath + '/' + apps[app] + '/_dist'));
-    }
+    return gulp.src(basePath + '/blog/_content/app.less')
+        .pipe(plumber())
+        .pipe(less())
+        .pipe(autoprefixer())
+        .pipe(cleanCSS())
+        .pipe(gulp.dest(basePath + '/blog/_dist/'));
 };
 
-exports.scripts = scripts;
-exports.lessFiles = lessFiles;
+function adminLess() {
 
-exports.default = gulp.series(lessFiles, scripts);
+    return gulp.src(basePath + '/admin/_content/app.less')
+        .pipe(plumber())
+        .pipe(less())
+        .pipe(autoprefixer())
+        .pipe(cleanCSS())
+        .pipe(gulp.dest(basePath + '/admin/_dist/'));
+};
+
+function blogScripts() {
+
+    return gulp.src([
+        basePath + '/blog/**/*.js', 
+        '!' + basePath + '/blog/_content/**/*.js', 
+        '!' + basePath + '/blog/_dist/**/*.js'
+    ])
+        .pipe(plumber())
+        .pipe(ngAnnotate())
+        .pipe(uglify())
+        .pipe(concat('app.min.js'))
+        .pipe(gulp.dest(basePath + '/blog/_dist'));
+};
+
+function adminScripts() {
+
+    return gulp.src([
+        basePath + '/admin/**/*.js', 
+        '!' + basePath + '/admin/_content/**/*.js', 
+        '!' + basePath + '/admin/_dist/**/*.js'
+    ])
+        .pipe(plumber())
+        .pipe(ngAnnotate())
+        .pipe(uglify())
+        .pipe(concat('app.min.js'))
+        .pipe(gulp.dest(basePath + '/admin/_dist'));
+};
+
+exports.blogCss = blogCss;
+exports.blogLess = blogLess;
+exports.adminLess = adminLess;
+exports.blogScripts = blogScripts;
+exports.adminScripts = adminScripts;
+
+exports.default = gulp.series(gulp.parallel(blogCss, blogLess, adminLess), gulp.parallel(blogScripts, adminScripts));

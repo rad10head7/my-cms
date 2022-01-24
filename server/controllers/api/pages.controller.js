@@ -7,7 +7,7 @@ var pageService = require('services/page.service');
 
 // routes
 router.get('/', getAll);
-router.get('/slug/:slug', getBySlug);
+router.get('/:slug', getBySlug);
 router.get('/:_id', jwt, getById);
 router.post('/', jwt, create);
 router.put('/:_id', jwt, update);

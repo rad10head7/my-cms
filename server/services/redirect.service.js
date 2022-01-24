@@ -1,9 +1,11 @@
 ﻿var config = require('config.json');
 var _ = require('lodash');
 var Q = require('q');
-var mongo = require('mongoskin');
-var db = mongo.db(config.connectionString, { native_parser: true });
-db.bind('redirects');
+var mongo = require('mongodb');
+var MongoClient = mongo.MongoClient;
+var client = new MongoClient(config.connectionString);
+client.connect();
+var db = client.db(config.dbname);
 
 var service = {};
 
@@ -19,7 +21,7 @@ module.exports = service;
 function getAll() {
     var deferred = Q.defer();
 
-    db.redirects.find().toArray(function (err, redirects) {
+    db.collection('redirects').find().toArray(function (err, redirects) {
         if (err) deferred.reject(err.name + ': ' + err.message);
 
         deferred.resolve(redirects);
@@ -31,10 +33,12 @@ function getAll() {
 function getById(_id) {
     var deferred = Q.defer();
 
-    db.redirects.findById(_id, function (err, redirect) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
+    db.collection('redirects').findOne(
+        { _id: new mongo.ObjectId(_id) },
+        function (err, redirect) {
+          if (err) deferred.reject(err.name + ': ' + err.message);
 
-        deferred.resolve(redirect);
+          deferred.resolve(redirect);
     });
 
     return deferred.promise;
@@ -43,7 +47,7 @@ function getById(_id) {
 function getByFrom(from) {
     var deferred = Q.defer();
 
-    db.redirects.findOne({
+    db.collection('redirects').findOne({
         from: from
     }, function (err, redirect) {
         if (err) deferred.reject(err.name + ': ' + err.message);
@@ -67,7 +71,7 @@ function create(redirectParam) {
         redirectParam.from = redirectParam.from.toLowerCase();
         redirectParam.to = redirectParam.to.toLowerCase();
 
-        db.redirects.insert(
+        db.collection('redirects').insertOne(
             redirectParam,
             function (err, doc) {
                 if (err) deferred.reject(err.name + ': ' + err.message);
@@ -97,8 +101,8 @@ function update(_id, redirectParam) {
         // fields to update
         var set = _.omit(redirectParam, '_id');
 
-        db.redirects.update(
-            { _id: mongo.helper.toObjectID(_id) },
+        db.collection('redirects').update(
+            { _id: new mongo.ObjectId(_id) },
             { $set: set },
             function (err, doc) {
                 if (err) deferred.reject(err.name + ': ' + err.message);
@@ -115,8 +119,8 @@ function update(_id, redirectParam) {
 function _delete(_id) {
     var deferred = Q.defer();
 
-    db.redirects.remove(
-        { _id: mongo.helper.toObjectID(_id) },
+    db.collection('redirects').deleteOne(
+        { _id: new mongo.ObjectId(_id) },
         function (err) {
             if (err) deferred.reject(err.name + ': ' + err.message);
 

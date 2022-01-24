@@ -2,9 +2,11 @@
 var _ = require('lodash');
 var Q = require('q');
 var slugify = require('helpers/slugify');
-var mongo = require('mongoskin');
-var db = mongo.db(config.connectionString, { native_parser: true });
-db.bind('posts');
+var mongo = require('mongodb');
+var MongoClient = mongo.MongoClient;
+var client = new MongoClient(config.connectionString);
+client.connect();
+var db = client.db(config.dbname);
 
 var service = {};
 
@@ -20,7 +22,7 @@ module.exports = service;
 function getAll() {
     var deferred = Q.defer();
 
-    db.posts.find().sort({ publishDate: -1 }).toArray(function (err, posts) {
+    db.collection('posts').find().sort({ publishDate: -1 }).toArray(function (err, posts) {
         if (err) deferred.reject(err.name + ': ' + err.message);
 
         deferred.resolve(posts);
@@ -32,7 +34,7 @@ function getAll() {
 function getByUrl(year, month, day, slug) {
     var deferred = Q.defer();
 
-    db.posts.findOne({
+    db.collection('posts').findOne({
         publishDate: year + '-' + month + '-' + day,
         slug: slug
     }, function (err, post) {
@@ -47,10 +49,12 @@ function getByUrl(year, month, day, slug) {
 function getById(_id) {
     var deferred = Q.defer();
 
-    db.posts.findById(_id, function (err, post) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
+    db.collection('posts').findOne(
+        { _id: new mongo.ObjectId(_id) },
+        function (err, post) { 
+          if (err) deferred.reject(err.name + ': ' + err.message);
 
-        deferred.resolve(post);
+          deferred.resolve(post);
     });
 
     return deferred.promise;
@@ -62,7 +66,7 @@ function create(postParam) {
     // generate slug from title if empty
     postParam.slug = postParam.slug || slugify(postParam.title);
 
-    db.posts.insert(
+    db.collection('posts').insertOne(
         postParam,
         function (err, doc) {
             if (err) deferred.reject(err.name + ': ' + err.message);
@@ -82,8 +86,8 @@ function update(_id, postParam) {
     // fields to update
     var set = _.omit(postParam, '_id');
 
-    db.posts.update(
-        { _id: mongo.helper.toObjectID(_id) },
+    db.collection('posts').update(
+        { _id: new mongo.ObjectId(_id) },
         { $set: set },
         function (err, doc) {
             if (err) deferred.reject(err.name + ': ' + err.message);
@@ -97,8 +101,8 @@ function update(_id, postParam) {
 function _delete(_id) {
     var deferred = Q.defer();
 
-    db.posts.remove(
-        { _id: mongo.helper.toObjectID(_id) },
+    db.collection('posts').deleteOne(
+        { _id: new mongo.ObjectId(_id) },
         function (err) {
             if (err) deferred.reject(err.name + ': ' + err.message);
 

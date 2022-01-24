@@ -3,9 +3,11 @@ var _ = require('lodash');
 var jwt = require('jsonwebtoken');
 var bcrypt = require('bcryptjs');
 var Q = require('q');
-var mongo = require('mongoskin');
-var db = mongo.db(config.connectionString, { native_parser: true });
-db.bind('users');
+var mongo = require('mongodb');
+var MongoClient = mongo.MongoClient;
+var client = new MongoClient(config.connectionString);
+client.connect();
+var db = client.db(config.dbname);
 
 var service = {};
 
@@ -21,7 +23,7 @@ module.exports = service;
 function authenticate(username, password) {
     var deferred = Q.defer();
 
-    db.users.findOne({ username: username }, function (err, user) {
+    db.collection('users').findOne({ username: username }, function (err, user) {
         if (err) deferred.reject(err.name + ': ' + err.message);
 
         if (user && bcrypt.compareSync(password, user.hash)) {
@@ -39,7 +41,7 @@ function authenticate(username, password) {
 function getAll() {
     var deferred = Q.defer();
 
-    db.users.find().toArray(function (err, users) {
+    db.collection('users').find().toArray(function (err, users) {
         if (err) deferred.reject(err.name + ': ' + err.message);
 
         // return users (without hashed passwords)
@@ -56,10 +58,12 @@ function getAll() {
 function getById(_id) {
     var deferred = Q.defer();
 
-    db.users.findById(_id, function (err, user) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
+    db.collection('users').findOne(
+        { _id: new mongo.ObjectId(_id) },
+        function (err, user) {
+          if (err) deferred.reject(err.name + ': ' + err.message);
 
-        if (user) {
+          if (user) {
             // return user (without hashed password)
             deferred.resolve(_.omit(user, 'hash'));
         } else {
@@ -75,7 +79,7 @@ function create(userParam) {
     var deferred = Q.defer();
 
     // validation
-    db.users.findOne(
+    db.collection('users').findOne(
         { username: userParam.username },
         function (err, user) {
             if (err) deferred.reject(err.name + ': ' + err.message);
@@ -95,7 +99,7 @@ function create(userParam) {
         // add hashed password to user object
         user.hash = bcrypt.hashSync(userParam.password, 10);
 
-        db.users.insert(
+        db.collection('users').insertOne(
             user,
             function (err, doc) {
                 if (err) deferred.reject(err.name + ': ' + err.message);
@@ -111,12 +115,14 @@ function update(_id, userParam) {
     var deferred = Q.defer();
 
     // validation
-    db.users.findById(_id, function (err, user) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
+    db.collection('users').findOne(
+        { _id: new mongo.ObjectId(_id) },
+        function (err, user) { 
+          if (err) deferred.reject(err.name + ': ' + err.message);
 
-        if (user.username !== userParam.username) {
+          if (user.username !== userParam.username) {
             // username has changed so check if the new username is already taken
-            db.users.findOne(
+            db.collection('users').findOne(
                 { username: userParam.username },
                 function (err, user) {
                     if (err) deferred.reject(err.name + ': ' + err.message);
@@ -144,8 +150,8 @@ function update(_id, userParam) {
             set.hash = bcrypt.hashSync(userParam.password, 10);
         }
 
-        db.users.update(
-            { _id: mongo.helper.toObjectID(_id) },
+        db.collection('users').update(
+            { _id: new mongo.ObjectId(_id) },
             { $set: set },
             function (err, doc) {
                 if (err) deferred.reject(err.name + ': ' + err.message);
@@ -160,8 +166,8 @@ function update(_id, userParam) {
 function _delete(_id) {
     var deferred = Q.defer();
 
-    db.users.remove(
-        { _id: mongo.helper.toObjectID(_id) },
+    db.collection('users').deleteOne(
+        { _id: new mongo.ObjectId(_id) },
         function (err) {
             if (err) deferred.reject(err.name + ': ' + err.message);
 
